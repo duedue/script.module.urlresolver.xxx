@@ -24,3 +24,7 @@ class DatoPornResolver(GenericResolver):
     name = "datoporn"
     domains = ['datoporn.com', 'dato.porn']
     pattern = '(?://|\.)(datoporn\.com|dato\.porn)/(?:embed[/-])?([0-9a-zA-Z]+)'
+    
+    @classmethod
+    def _is_enabled(cls):
+        return True
