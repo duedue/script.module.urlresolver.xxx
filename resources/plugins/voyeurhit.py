@@ -52,11 +52,11 @@ class VoyeurhitResolver(UrlResolver):
             return helpers.get_media_url(self.get_url(host, media_id)).replace(' ', '%20')
     
     def get_host_and_id(self, url):
-        if not '/?v=' in url: r = re.search(self.pattern2, url, re.I)
-        else: r = re.search(self.pattern, url, re.I)
+        r = re.search(self.pattern, url, re.I)
+        r = r if r else re.search(self.pattern2, url, re.I)
         if r: 
             return r.groups()
-        else: 
+        else:
             return False
     
     def get_url(self, host, media_id):
