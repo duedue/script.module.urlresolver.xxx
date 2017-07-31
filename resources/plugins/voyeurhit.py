@@ -38,14 +38,8 @@ class VoyeurhitResolver(UrlResolver):
             if html:
                 embed = re.findall("""<iframe.+?src=['\"]http://voyeurhit.com/embed/(\d+)""", html, re.I)[0]
                 if embed:
-                    html2 = self.net.http_GET('http://voyeurhit.com/embed/%s' % embed, headers=headers).content
-
-                    if html2:
-                        try:
-                            file = re.search('''video_url:\s*['"]([^"']+)''', html2, re.DOTALL).groups()[0]
-                            return file + helpers.append_headers(headers)
-                        except:
-                            raise ResolverError('File not found')
+                    return helpers.get_media_url("http://voyeurhit.com/embed/%s" % embed).replace(' ', '%20')
+                
             raise ResolverError('File not found')
             
         else:
