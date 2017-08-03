@@ -29,21 +29,19 @@ class VRSmashResolver(UrlResolver):
         self.net = common.Net()
 
     def get_media_url(self, host, media_id):
-        
-        try:
-            headers = {'User-Agent': common.RAND_UA}
-            web_url = self.get_url(host, media_id)
-            html = self.net.http_GET(web_url, headers=headers).content
-                
-            if html:
-                try:
-                    file = re.search('''<source\s*src=['"]([^"']+)''', html, re.DOTALL).groups()[0]
-                    return urlparse.urljoin('https://www.vrsmash.com', file) + helpers.append_headers(headers)
-                except:
-                    raise ResolverError('File not found')
-            raise ResolverError('File not found')
-        except:
-            raise ResolverError('File not found') 
+        headers = {'User-Agent': common.RAND_UA}
+        web_url = self.get_url(host, media_id)
+        html = self.net.http_GET(web_url, headers=headers).content
+
+        if html:
+            try:
+                headers.update({'Referer': web_url})
+                file = re.search('''<source\s*src=['"]([^"']+)''', html, re.DOTALL).groups()[0]
+                return urlparse.urljoin('https://www.vrsmash.com', file) + helpers.append_headers(headers)
+            except:
+                raise ResolverError('File not found')
+
+        raise ResolverError('File not found')
 
     def get_url(self, host, media_id):
         return self._default_get_url(host, media_id, template='https://www.{host}/view/{media_id}')
