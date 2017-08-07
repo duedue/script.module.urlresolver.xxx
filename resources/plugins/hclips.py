@@ -23,8 +23,7 @@ from urlresolver.resolver import UrlResolver, ResolverError
 class HClipsResolver(UrlResolver):
     name = 'hclips'
     domains = ['hclips.com']
-    pattern = '(?://|\.)(hclips\.com)/(?:embed|videos)/(?:.+?\:\d+\:)?(\d+)'
-    pattern2 = '(?://|\.)(hclips\.com)/videos/([\-\w]+)'
+    pattern = '(?://|\.)(hclips\.com)/(videos/[\w-]+/\?[a-z]+=\d+:\w+:\d+:\d+:\d+)'
     
     def __init__(self):
         self.net = common.Net()
@@ -32,44 +31,19 @@ class HClipsResolver(UrlResolver):
     def get_media_url(self, host, media_id):
         headers = {'User-Agent': common.RAND_UA}
         web_url = self.get_url(host, media_id)
-        
-        if not media_id.isdigit():
-            html = self.net.http_GET(web_url, headers=headers).content
-            if html:
-                try:
-                    web_url = re.search("""<iframe\s*width=['"]\d+['"]\s*height=['"]\d+['"]\s*src=['"](http:\/\/www\.hclips\.com\/embed\/(\d+))""", html).groups()[0]
-                    
-                except:
-                    raise ResolverError('File not found')
-            else: 
-                raise ResolverError('File not found')
 
-        html2 = self.net.http_GET(web_url, headers=headers).content
-        if html2:
-            sources = re.findall(''''label['"]:.+?,['"]file['"]:\s*['"](?P<url>[^'"]+)['"],['"]type['"]:\s*['"](?P<label>[^'"]+)''', html2, re.DOTALL)
+        html = self.net.http_GET(web_url, headers=headers).content
+        if html:
+            sources = re.findall(''''file['"]:\s*['"](?P<url>[^'"]+)['"],type:['"](?P<label>[^'"]+)''', html, re.DOTALL)
             if sources:
                 sources = [(i[1], i[0]) for i in sources]
                 return self.net.http_GET(helpers.pick_source(sources), headers=headers).get_url() + helpers.append_headers(headers)
                 
         raise ResolverError('File not found')
-        
-    def get_host_and_id(self, url):
-        r = re.search(self.pattern, url, re.I)
-        r = r if r else re.search(self.pattern2, url, re.I)
-        if r: 
-            return r.groups()
-        else:
-            return False
     
     def get_url(self, host, media_id):
-        if not media_id.isdigit():
-            return self._default_get_url(host, media_id, template='https://www.{host}/videos/{media_id}')
-        else:
-            return self._default_get_url(host, media_id, template='https://www.{host}/embed/{media_id}')
+        return self._default_get_url(host, media_id, template='https://www.{host}/{media_id}')
             
-    def valid_url(self, url, host):
-        return re.search(self.pattern, url, re.I) or re.search(self.pattern2, url, re.I) or self.name in host
-        
     @classmethod
     def _is_enabled(cls):
         return True
