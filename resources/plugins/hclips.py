@@ -23,7 +23,7 @@ from urlresolver.resolver import UrlResolver, ResolverError
 class HClipsResolver(UrlResolver):
     name = 'hclips'
     domains = ['hclips.com']
-    pattern = '(?://|\.)(hclips\.com)/(videos/[\w-]+/\?[a-z]+=\d+:\w+:\d+:\d+:\d+)'
+    pattern = '(?://|\.)(hclips\.com)/((?:videos|embed)/[\w\-]+)'
     
     def __init__(self):
         self.net = common.Net()
@@ -31,13 +31,21 @@ class HClipsResolver(UrlResolver):
     def get_media_url(self, host, media_id):
         headers = {'User-Agent': common.RAND_UA}
         web_url = self.get_url(host, media_id)
-
         html = self.net.http_GET(web_url, headers=headers).content
+        
         if html:
-            sources = re.findall(''''file['"]:\s*['"](?P<url>[^'"]+)['"],type:['"](?P<label>[^'"]+)''', html, re.DOTALL)
-            if sources:
-                sources = [(i[1], i[0]) for i in sources]
-                return self.net.http_GET(helpers.pick_source(sources), headers=headers).get_url() + helpers.append_headers(headers)
+            try:
+                if media_id.startswith('embed/'):
+                    web_url = re.search('''link:\s*["']([^"']+)''', html).groups()[0]
+                    html = self.net.http_GET(web_url, headers=headers).content
+                    
+                sources = re.findall(''''file['"]:\s*['"](?P<url>[^'"]+)['"],type:['"](?P<label>[^'"]+)''', html, re.DOTALL)
+                if sources:
+                    sources = [(i[1], i[0]) for i in sources]
+                    return self.net.http_GET(helpers.pick_source(sources), headers=headers).get_url() + helpers.append_headers(headers)
+                    
+            except Exception as e:
+                raise ResolverError(e)
                 
         raise ResolverError('File not found')
     
