@@ -39,7 +39,7 @@ class HClipsResolver(UrlResolver):
                     web_url = re.search('''link:\s*["']([^"']+)''', html).groups()[0]
                     html = self.net.http_GET(web_url, headers=headers).content
                     
-                sources = re.findall('''['"]?file['"]?:\s*['"]([^'"]+).+?['"]?type['"]?:['"]([^'"]+)''', html)
+                sources = re.findall('''['"]?file['"]?:\s*['"]([^'"]+).+?['"]?type['"]?:\s*['"]([^'"]+)''', html)
                 if sources:
                     sources = [(i[1], i[0]) for i in sources]
                     return self.net.http_GET(helpers.pick_source(sources), headers=headers).get_url() + helpers.append_headers(headers)
