@@ -23,8 +23,7 @@ from urlresolver.resolver import UrlResolver, ResolverError
 class VoyeurhitResolver(UrlResolver):
     name = 'voyeurhit'
     domains = ['voyeurhit.com']
-    pattern = '(?://|\.)(voyeurhit\.com)/embed/(\d+)'
-    pattern2 = '(?://|\.)(voyeurhit\.com)/videos/([\w\-]+)/'
+    pattern = '(?://|\.)(voyeurhit\.com)/(?:videos|embed)/([\w\-]+)'
     
     def __init__(self):
         self.net = common.Net()
@@ -36,40 +35,20 @@ class VoyeurhitResolver(UrlResolver):
             html = self.net.http_GET(web_url, headers=headers).content
 
             if html:
-                embed = re.findall("""<iframe.+?src=['\"](http://voyeurhit.com/embed/\d+)""", html, re.I)[0]
+                embed = re.search("""<iframe.+?src=['"](http://voyeurhit.com/embed/\d+)""", html, re.I)
                 if embed:
-                    html2 = self.net.http_GET(web_url, headers=headers).content
-
-                    if html2:
-                        try:
-                            file = re.search('''video_url:\s*['"]([^"']+)''', html2, re.DOTALL).groups()[0]
-                    
-                            return file + helpers.append_headers(headers)
-                    
-                        except:
-                            raise ResolverError('File not found')
+                    return helpers.get_media_url(embed.group(1), patterns=["""video_url:\s*['"](?P<url>.+?)(?:/\?[^"']+)?["']"""]).replace(' ', '%20')
                 
             raise ResolverError('File not found')
             
         else:
-            return helpers.get_media_url(self.get_url(host, media_id)).replace(' ', '%20')
-    
-    def get_host_and_id(self, url):
-        r = re.search(self.pattern, url, re.I)
-        r = r if r else re.search(self.pattern2, url, re.I)
-        if r: 
-            return r.groups()
-        else:
-            return False
+            return helpers.get_media_url(self.get_url(host, media_id), patterns=["""video_url:\s*['"](?P<url>.+?)(?:/\?[^"']+)?["']"""]).replace(' ', '%20')
     
     def get_url(self, host, media_id):
         if not media_id.isdigit():
             return self._default_get_url(host, media_id, template='http://{host}/videos/{media_id}/')
         else:
             return self._default_get_url(host, media_id, template='http://{host}/embed/{media_id}')
-            
-    def valid_url(self, url, host):
-        return re.search(self.pattern, url, re.I) or re.search(self.pattern2, url, re.I) or self.name in host
         
     @classmethod
     def _is_enabled(cls):
