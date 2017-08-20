@@ -15,7 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 '''
-import re, urllib2, ssl
+import re, sys, urllib2, ssl
 from urlresolver import common
 from urlresolver.plugins.lib import helpers
 from urlresolver.resolver import UrlResolver, ResolverError
@@ -26,8 +26,8 @@ class VirtualPornStarsResolver(UrlResolver):
     pattern = '(?://|\.)(virtualpornstars\.com)/(?:\w+/)?([\w\-]+)'
     
     def __init__(self):
-        try: self.context = ssl._create_unverified_context()
-        except: raise ResolverError('Python 2.7.9 or greater required')
+        if sys.version_info < (2, 7, 9): raise ResolverError('Python 2.7.9 or greater required')
+        self.context = ssl._create_unverified_context()
 
     def get_media_url(self, host, media_id):
         web_url = self.get_url(host, media_id)
@@ -53,4 +53,4 @@ class VirtualPornStarsResolver(UrlResolver):
         
     @classmethod
     def _is_enabled(cls):
-        return True
+        return False if sys.version_info < (2, 7, 9) else True
