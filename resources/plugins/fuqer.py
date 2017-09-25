@@ -28,28 +28,19 @@ class FuqerResolver(UrlResolver):
     def __init__(self):
         self.net = common.Net()
 
-    def get_media_url(self, host, media_id):  
-        
-        headers = {'User-Agent': common.RAND_UA}
+    def get_media_url(self, host, media_id):
         web_url = self.get_url(host, media_id)
+        headers = {'User-Agent': common.RAND_UA, 'Referer': 'https://www.%s/nuevo/player/embed.php?key=%s' % (host, media_id)}
         html = self.net.http_GET(web_url, headers=headers).content
 
         if html:
-            try:
-                headers.update({'Referer': 'https://www.fuqer.com/', \
-                                'X-Requested-With': 'ShockwaveFlash/26.0.0.137', \
-                                'Accept': '*/*', \
-                                'Accept-Encoding': 'gzip, deflate, br', \
-                                'Accept-Language': 'en-US,en;q=0.8'})
-                sources = re.search('''<file>([^<]+)''', html)
-                return sources.groups()[0] + helpers.append_headers(headers)
-            except:
-                raise ResolverError('File not found')
+            source = re.search('''<file>\s*([^<\s*]+)''', html)
+            if source: return source.group(1) + helpers.append_headers(headers)
         
         raise ResolverError('File not found')
     
     def get_url(self, host, media_id):
-        return self._default_get_url(host, media_id, template='https://www.{host}/nuevo/player/config5.php?key={media_id}')
+        return self._default_get_url(host, media_id, template='https://www.{host}/nuevo/player/config.php?key={media_id}')
         
     @classmethod
     def _is_enabled(cls):
