@@ -34,18 +34,16 @@ class OverThumbsResolver(UrlResolver):
         html = self.net.http_GET(web_url, headers=headers).content
         
         if html:
-            try:
-                video_id = re.search("""playvideo\.php\?id=(\d+)""", html).groups()[0]
+            video_id = re.search("""playvideo\.php\?id=(\d+)""", html)
+            if video_id:
+                video_url = 'http://%s/jwplayer/playvideo.php?id=%s' % (host, video_id.group(1))
                 headers.update({'Referer': web_url})
-                video_url = 'http://%s/jwplayer/playvideo.php?id=%s' % (host, video_id)
-                html = self.net.http_GET(video_url, headers=headers).content
-                html = jsunpack.unpack(html)
-                sources = helpers.scrape_sources(html, patterns=['''file:\s*["'](?P<url>[^"']+)'''])
-                
-                return helpers.pick_source(sources) + helpers.append_headers(headers)
-                
-            except: 
-                raise ResolverError('File not found')
+                _html = self.net.http_GET(video_url, headers=headers).content
+                if _html:
+                    try: _html = jsunpack.unpack(_html)
+                    except Exception as e: raise ResolverError(e)
+                    sources = helpers.scrape_sources(_html, patterns=['''file:\s*["'](?P<url>http[^"']+)'''])
+                    if sources: return helpers.pick_source(sources) + helpers.append_headers(headers)
         
         raise ResolverError('File not found')
         
