@@ -34,20 +34,19 @@ class SexixResolver(UrlResolver):
         html = self.net.http_GET(web_url, headers=headers).content
             
         if html:
-            try:
-                headers.update({'Referer': web_url})
-                iframe_url = re.search("""<iframe.+?src=["'](http://sexix\.net/v\.php\?u=.+?)['"]""", html).groups()[0]
-                iframe_content = self.net.http_GET(iframe_url, headers=headers).content
-                headers.update({'Referer': iframe_url})
-                playlist_url = re.search("""playlist:\s*['"]([^'"]+)""", iframe_content).groups()[0]
-                if playlist_url:
-                    playlist_content = self.net.http_GET(playlist_url, headers=headers).content
-                    sources = re.findall(r'''source\s*file=['"](?P<url>[^'"]+)['"]\s*type=['"]\w+['"]\s*label=['"](?P<label>(\w+))['"]''',playlist_content)
-                    sources = [(i[1], i[0]) for i in sources if i]
-                    return helpers.pick_source(sources)
-                    
-            except:
-                raise ResolverError('File not found')
+            iframe_url = re.search("""<iframe.+?src=["'](http://sexix\.net/v\.php\?(u=.+?))['"]""", html)
+            if iframe_url:
+                playlist_url = 'http://sexix.net/qaqqew/playlist.php?%s' % iframe_url.group(2)
+                headers.update({'Referer': iframe_url.group(1)})
+                _html = self.net.http_GET(playlist_url, headers=headers).content
+                if _html:
+                    sources = re.findall("""source file=["']([^"']+).+?label=["']([^"']+)""", _html)
+                    if sources:
+                        sources = [(i[1], i[0]) for i in sources]
+                        try: sources.sort(key=lambda x: int(re.sub("\D", "", x[0])), reverse=True)
+                        except: pass
+                        headers.update({'Referer': web_url})
+                        return helpers.pick_source(sources) + helpers.append_headers(headers)
                 
         raise ResolverError('File not found')
 
