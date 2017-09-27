@@ -34,35 +34,41 @@ class HentaiHeavenResolver(UrlResolver):
         html = self.net.http_GET(web_url, headers=headers).content
         
         if html:
-            b64 = re.search("((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=))", html)
-            if b64:
-                import base64
-                js = base64.b64decode(b64.group(1)).replace('\n', ' ').replace('\r', '')
-                js = re.sub(r"(0x[a-zA-Z0-9]+)", lambda m : str(int(m.group(1),16)), js)
-                js = re.sub(r"\.charAt\((\d+)\)", r"[\1]", js)
-                js = re.sub(r"\.substr\((\d+),\s*(\d+)\)", r"[\1:\1+\2]", js)
-                js = re.sub(r"\.slice\((\d+),\s*(\d+)\)", r"[\1:\2]", js)
-                js = re.sub(r"String\.fromCharCode\((\d+)\)", r"chr(\1)", js)
-                matches = re.search("^(\w+)\s*=\s*([^;]+)", js)
-                match = re.search("document\.cookie=(.+?);\s*location\.reload\(\);", js)
-                if matches and match:
-                    try:
-                        vars()[matches.group(1)] = eval(matches.group(2).replace("eval(", ""))
-                        cookie = eval(match.group(1).replace("eval(", ""))
-                    except:
-                        raise ResolverError("Could not decode cookie")
-                    if cookie:
-                        headers.update({'Referer': web_url, 'Cookie': cookie})
-                        _html = self.net.http_GET(web_url, headers=headers).content
-                        if _html:
-                            sources = re.findall('''<source\s*.+?label=['"](\w+)['"]\s*src=['"]([^'"]+)''', _html, re.DOTALL)
-                            sources = [(i[0], i[1]) for i in sources if not i[1] == "dead_link"]
-                            if sources:
-                                try: sources.sort(key=lambda x: int(re.sub("\D", "", x[0])), reverse=True)
-                                except: pass
-                                return helpers.pick_source(sources) + helpers.append_headers(headers)
+            cookie = self.decode_cookie(html)
+            if cookie:
+                headers.update({'Referer': web_url, 'Cookie': cookie})
+                _html = self.net.http_GET(web_url, headers=headers).content
+                if _html:
+                    sources = re.findall('''<source\s*.+?label=['"](\w+)['"]\s*src=['"]([^'"]+)''', _html, re.DOTALL)
+                    sources = [(i[0], i[1]) for i in sources if not i[1] == "dead_link"]
+                    if sources:
+                        try: sources.sort(key=lambda x: int(re.sub("\D", "", x[0])), reverse=True)
+                        except: pass
+                        return helpers.pick_source(sources) + helpers.append_headers(headers)
 
         raise ResolverError('File not found')
+        
+    def decode_cookie(self, html):
+        cookie = None
+        b64 = re.search("((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=))", html)
+        if b64:
+            import base64
+            js = base64.b64decode(b64.group(1)).replace('\n', ' ').replace('\r', '')
+            js = re.sub(r"(0x[a-zA-Z0-9]+)", lambda m : str(int(m.group(1),16)), js)
+            js = re.sub(r"\.charAt\((\d+)\)", r"[\1]", js)
+            js = re.sub(r"\.substr\((\d+),\s*(\d+)\)", r"[\1:\1+\2]", js)
+            js = re.sub(r"\.slice\((\d+),\s*(\d+)\)", r"[\1:\2]", js)
+            js = re.sub(r"String\.fromCharCode\((\d+)\)", r"chr(\1)", js)
+            matches = re.search("^(\w+)\s*=\s*([^;]+)", js)
+            match = re.search("document\.cookie=(.+?);\s*location\.reload\(\);", js)
+            if matches and match:
+                try:
+                    vars()[matches.group(1)] = eval(matches.group(2).replace("eval(", ""))
+                    cookie = eval(match.group(1).replace("eval(", ""))
+                except:
+                    raise ResolverError("Could not decode cookie")
+                    
+        return cookie
 
     def get_url(self, host, media_id):
         return self._default_get_url(host, media_id, template='http://{host}/{media_id}')
@@ -70,4 +76,3 @@ class HentaiHeavenResolver(UrlResolver):
     @classmethod
     def _is_enabled(cls):
         return True
-
