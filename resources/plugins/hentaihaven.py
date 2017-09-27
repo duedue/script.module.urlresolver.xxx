@@ -23,29 +23,51 @@ from urlresolver.resolver import UrlResolver, ResolverError
 class HentaiHeavenResolver(UrlResolver):
     name = 'hentaihaven'
     domains = ['hentaihaven.org']
-    pattern = '(?://|\.)(hentaihaven\.org)/([-a-zA-Z\d]+)'
+    pattern = '(?://|\.)(hentaihaven\.org)/([\w\-]+)'
     
     def __init__(self):
         self.net = common.Net()
 
-    def get_media_url(self, host, media_id):  
+    def get_media_url(self, host, media_id):
+        web_url = self.get_url(host, media_id)
+        headers = {'User-Agent': common.RAND_UA}
+        html = self.net.http_GET(web_url, headers=headers).content
         
-        try:
-            headers = {'User-Agent': common.RAND_UA}
-            web_url = self.get_url(host, media_id)
-            html = self.net.http_GET(web_url, headers=headers).content
-            
-            if html:
-                sources = re.findall('''<source\s*.+?label=['"](?P<label>\w+)['"]\s*src=['"](?P<url>[^'"]+)''', html, re.DOTALL)
-                return self.net.http_GET(helpers.pick_source(sources), headers=headers).get_url() + helpers.append_headers(headers)
+        if html:
+            b64 = re.search("((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=))", html)
+            if b64:
+                import base64
+                js = base64.b64decode(b64.group(1)).replace('\n', ' ').replace('\r', '')
+                js = re.sub(r"\.charAt\((\d+)\)", r"[\1]", js)
+                js = re.sub(r"\.substr\((\d+),\s*(\d+)\)", r"[\1:\1+\2]", js)
+                js = re.sub(r"\.slice\((\d+),\s*(\d+)\)", r"[\1:\2]", js)
+                js = re.sub(r"(0x[a-zA-Z0-9]+)", lambda m : str(int(m.group(1),16)), js)
+                js = re.sub(r"String\.fromCharCode\((\d+)\)", r"chr(\1)", js)
+                matches = re.search("^(\w+)\s*=\s*([^;]+)", js)
+                match = re.search("document\.cookie=(.+?);\s*location\.reload\(\);", js)
+                if matches and match:
+                    try:
+                        vars()[matches.group(1)] = eval(matches.group(2).replace("eval(", ""))
+                        cookie = eval(match.group(1).replace("eval(", ""))
+                    except:
+                        raise ResolverError("Could not decode cookie")
+                    if cookie:
+                        headers.update({'Referer': web_url, 'Cookie': cookie})
+                        _html = self.net.http_GET(web_url, headers=headers).content
+                        if _html:
+                            sources = re.findall('''<source\s*.+?label=['"](\w+)['"]\s*src=['"]([^'"]+)''', _html, re.DOTALL)
+                            sources = [(i[0], i[1]) for i in sources if not i[1] == "dead_link"]
+                            if sources:
+                                try: sources.sort(key=lambda x: int(re.sub("\D", "", x[0])), reverse=True)
+                                except: pass
+                                return helpers.pick_source(sources) + helpers.append_headers(headers)
 
-            raise ResolverError('File not found')
-        except:
-            raise ResolverError('File not found')
-    
+        raise ResolverError('File not found')
+
     def get_url(self, host, media_id):
-        return self._default_get_url(host, media_id, template='http://www.{host}/{media_id}/')
-        
+        return self._default_get_url(host, media_id, template='http://{host}/{media_id}')
+
     @classmethod
     def _is_enabled(cls):
         return True
+
