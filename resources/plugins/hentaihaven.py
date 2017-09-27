@@ -1,6 +1,6 @@
 '''
     urlresolver XBMC Addon
-    Copyright (C) 2016 Gujal
+    Copyright (C) 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -49,26 +49,27 @@ class HentaiHeavenResolver(UrlResolver):
         raise ResolverError('File not found')
         
     def decode_cookie(self, html):
-        cookie = None
-        b64 = re.search("((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=))", html)
-        if b64:
+        try:
             import base64
-            js = base64.b64decode(b64.group(1)).replace('\n', ' ').replace('\r', '')
-            js = re.sub(r"(0x[a-zA-Z0-9]+)", lambda m : str(int(m.group(1),16)), js)
-            js = re.sub(r"\.charAt\((\d+)\)", r"[\1]", js)
-            js = re.sub(r"\.substr\((\d+),\s*(\d+)\)", r"[\1:\1+\2]", js)
-            js = re.sub(r"\.slice\((\d+),\s*(\d+)\)", r"[\1:\2]", js)
-            js = re.sub(r"String\.fromCharCode\((\d+)\)", r"chr(\1)", js)
-            matches = re.search("^(\w+)\s*=\s*([^;]+)", js)
-            match = re.search("document\.cookie=(.+?);\s*location\.reload\(\);", js)
-            if matches and match:
-                try:
-                    vars()[matches.group(1)] = eval(matches.group(2).replace("eval(", ""))
-                    cookie = eval(match.group(1).replace("eval(", ""))
-                except:
-                    raise ResolverError("Could not decode cookie")
-                    
-        return cookie
+            self.cookie = None
+            s = re.compile("S\s*=\s*'([^']+)").findall(html)[0]
+            s = base64.b64decode(s)
+            s = s.replace(' ', '')
+            s = re.sub('String\.fromCharCode\(([^)]+)\)', r'chr(\1)', s)
+            s = re.sub('\.slice\((\d+),(\d+)\)', r'[\1:\2]', s)
+            s = re.sub('\.charAt\(([^)]+)\)', r'[\1]', s)
+            s = re.sub('\.substr\((\d+),(\d+)\)', r'[\1:\1+\2]', s)
+            s = re.sub(';location.reload\(\);', '', s)
+            s = re.sub(r'\n', '', s)
+            s = re.sub(r'document\.cookie', 'cookie', s)
+
+            cookie = '' ; exec(s)
+            self.cookie = re.compile('([^=]+)=(.*)').findall(cookie)[0]
+            self.cookie = '%s=%s' % (self.cookie[0], self.cookie[1])
+
+            return self.cookie
+        except:
+            pass
 
     def get_url(self, host, media_id):
         return self._default_get_url(host, media_id, template='http://{host}/{media_id}')
