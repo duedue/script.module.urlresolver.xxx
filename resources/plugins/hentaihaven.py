@@ -38,10 +38,10 @@ class HentaiHeavenResolver(UrlResolver):
             if b64:
                 import base64
                 js = base64.b64decode(b64.group(1)).replace('\n', ' ').replace('\r', '')
+                js = re.sub(r"(0x[a-zA-Z0-9]+)", lambda m : str(int(m.group(1),16)), js)
                 js = re.sub(r"\.charAt\((\d+)\)", r"[\1]", js)
                 js = re.sub(r"\.substr\((\d+),\s*(\d+)\)", r"[\1:\1+\2]", js)
                 js = re.sub(r"\.slice\((\d+),\s*(\d+)\)", r"[\1:\2]", js)
-                js = re.sub(r"(0x[a-zA-Z0-9]+)", lambda m : str(int(m.group(1),16)), js)
                 js = re.sub(r"String\.fromCharCode\((\d+)\)", r"chr(\1)", js)
                 matches = re.search("^(\w+)\s*=\s*([^;]+)", js)
                 match = re.search("document\.cookie=(.+?);\s*location\.reload\(\);", js)
