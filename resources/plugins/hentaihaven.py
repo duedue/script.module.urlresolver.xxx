@@ -1,6 +1,6 @@
 '''
     urlresolver XBMC Addon
-    Copyright (C) 2016
+    Copyright (C) 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,21 +34,21 @@ class HentaiHeavenResolver(UrlResolver):
         html = self.net.http_GET(web_url, headers=headers).content
         
         if html:
-            cookie = self.decode_cookie(html)
-            if cookie:
+            if 'sucuri_cloudproxy_js' in html:
+                cookie = self.sucuri(html)
                 headers.update({'Referer': web_url, 'Cookie': cookie})
-                _html = self.net.http_GET(web_url, headers=headers).content
-                if _html:
-                    sources = re.findall('''<source\s*.+?label=['"](\w+)['"]\s*src=['"]([^'"]+)''', _html, re.DOTALL)
-                    sources = [(i[0], i[1]) for i in sources if not i[1] == "dead_link"]
-                    if sources:
-                        try: sources.sort(key=lambda x: int(re.sub("\D", "", x[0])), reverse=True)
-                        except: pass
-                        return helpers.pick_source(sources) + helpers.append_headers(headers)
+                html = self.net.http_GET(web_url, headers=headers).content
+                    
+            sources = re.findall('''<source\s*.+?label=['"](\w+)['"]\s*src=['"]([^'"]+)''', html)
+            sources = [(i[0], i[1]) for i in sources if not i[1] == "dead_link"]
+            if sources:
+                try: sources.sort(key=lambda x: int(re.sub("\D", "", x[0])), reverse=True)
+                except: pass
+                return helpers.pick_source(sources) + helpers.append_headers(headers)
 
         raise ResolverError('File not found')
         
-    def decode_cookie(self, html):
+    def sucuri(self, html):
         try:
             import base64
             self.cookie = None
@@ -69,7 +69,7 @@ class HentaiHeavenResolver(UrlResolver):
 
             return self.cookie
         except:
-            pass
+            raise ResolverError('Could not decode sucuri')
 
     def get_url(self, host, media_id):
         return self._default_get_url(host, media_id, template='http://{host}/{media_id}')
